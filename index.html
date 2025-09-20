@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Stopwatch</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Stopwatch</h1>
+      <p class="tagline">Measure and record precise time intervals</p>
+    </header>
+
+    <main>
+      <section class="stopwatch" aria-label="Stopwatch" role="group">
+        <div class="display" aria-live="polite" aria-atomic="true">
+          <span class="time" id="time-display" data-hours>00</span>
+          <span class="sep">:</span>
+          <span class="time" data-minutes>00</span>
+          <span class="sep">:</span>
+          <span class="time" data-seconds>00</span>
+          <span class="sep">.</span>
+          <span class="time milli" data-milliseconds>000</span>
+        </div>
+
+        <div class="controls" aria-label="Stopwatch controls">
+          <button type="button" id="btn-start" data-action="start">
+            Start
+          </button>
+          <button type="button" id="btn-pause" data-action="pause" disabled>
+            Pause
+          </button>
+          <button type="button" id="btn-resume" data-action="resume" hidden>
+            Resume
+          </button>
+          <button type="button" id="btn-reset" data-action="reset" disabled>
+            Reset
+          </button>
+          <button type="button" id="btn-lap" data-action="lap" disabled>
+            Lap
+          </button>
+          <button
+            type="button"
+            id="btn-clear-laps"
+            data-action="clear-laps"
+            disabled
+          >
+            Clear Laps
+          </button>
+        </div>
+      </section>
+
+      <section class="laps" aria-label="Recorded lap times">
+        <h2>Laps</h2>
+        <ol
+          id="lap-list"
+          class="lap-list"
+          aria-live="polite"
+          aria-relevant="additions removals"
+        >
+          
+        </ol>
+        <template id="lap-item-template">
+          <li class="lap-item">
+            <span class="lap-index" data-lap-index></span>
+            <span class="lap-time" data-lap-time></span>
+            <span class="lap-diff" data-lap-diff></span>
+          </li>
+        </template>
+      </section>
+    </main>
+
+    <footer>
+      <p>Stopwatch Web Application &mdash; Built for precise time tracking.</p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
