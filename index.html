@@ -15,7 +15,7 @@
     <main>
       <section class="stopwatch" aria-label="Stopwatch" role="group">
         <div class="display" aria-live="polite" aria-atomic="true">
-          <span class="time" id="time-display" data-hours>00</span>
+          <span class="time" data-hours>00</span>
           <span class="sep">:</span>
           <span class="time" data-minutes>00</span>
           <span class="sep">:</span>
@@ -51,16 +51,14 @@
         </div>
       </section>
 
-      <section class="laps" aria-label="Recorded lap times">
-        <h2>Laps</h2>
+      <section class="laps" aria-labelledby="laps-heading">
+        <h2 id="laps-heading">Laps</h2>
         <ol
           id="lap-list"
           class="lap-list"
           aria-live="polite"
           aria-relevant="additions removals"
-        >
-          
-        </ol>
+        ></ol>
         <template id="lap-item-template">
           <li class="lap-item">
             <span class="lap-index" data-lap-index></span>
@@ -75,6 +73,6 @@
       <p>Stopwatch Web Application &mdash; Built for precise time tracking.</p>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>

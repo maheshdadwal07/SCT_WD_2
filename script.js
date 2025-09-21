@@ -1,51 +1,91 @@
-
 (() => {
-  'use strict';
+  "use strict";
 
-  // --------- DOM ELEMENTS ---------
   const el = {
-    hours: document.querySelector('[data-hours]'),
-    minutes: document.querySelector('[data-minutes]'),
-    seconds: document.querySelector('[data-seconds]'),
-    millis: document.querySelector('[data-milliseconds]'),
-    btnStart: document.getElementById('btn-start'),
-    btnPause: document.getElementById('btn-pause'),
-    btnResume: document.getElementById('btn-resume'),
-    btnReset: document.getElementById('btn-reset'),
-    btnLap: document.getElementById('btn-lap'),
-    btnClearLaps: document.getElementById('btn-clear-laps'),
-    lapList: document.getElementById('lap-list'),
-    lapTemplate: document.getElementById('lap-item-template')
+    hours: document.querySelector("[data-hours]"),
+    minutes: document.querySelector("[data-minutes]"),
+    seconds: document.querySelector("[data-seconds]"),
+    millis: document.querySelector("[data-milliseconds]"),
+    btnStart: document.getElementById("btn-start"),
+    btnPause: document.getElementById("btn-pause"),
+    btnResume: document.getElementById("btn-resume"),
+    btnReset: document.getElementById("btn-reset"),
+    btnLap: document.getElementById("btn-lap"),
+    btnClearLaps: document.getElementById("btn-clear-laps"),
+    lapList: document.getElementById("lap-list"),
+    lapTemplate: document.getElementById("lap-item-template"),
+    stopwatchRoot: document.querySelector(".stopwatch"),
   };
 
-  // --------- STATE ---------
   let running = false;
-  let startTime = 0;          // timestamp when started/resumed (performance.now)
-  let elapsedBeforePause = 0; // accumulated time before current run (ms)
-  let rafId = null;           // requestAnimationFrame id
-  const laps = [];            // stores lap objects { index, total, diff }
-  let lastLapTime = 0;        // total ms at previous lap (for diff)
+  let startTime = 0;
+  let elapsedBeforePause = 0;
+  let rafId = null;
+  const laps = [];
+  let lastLapTime = 0;
+  let lastRendered = { h: "00", m: "00", s: "00", ms: "000" };
 
-  // --------- HELPERS ---------
+  const controlStates = {
+    idle: () => {
+      el.btnStart.disabled = false;
+      el.btnPause.disabled = true;
+      el.btnResume.hidden = true;
+      el.btnResume.disabled = true;
+      el.btnReset.disabled = true;
+      el.btnLap.disabled = true;
+      el.btnClearLaps.disabled = laps.length === 0;
+    },
+    running: () => {
+      el.btnStart.disabled = true;
+      el.btnPause.disabled = false;
+      el.btnResume.hidden = true;
+      el.btnResume.disabled = true;
+      el.btnReset.disabled = false;
+      el.btnLap.disabled = false;
+      el.btnClearLaps.disabled = laps.length === 0;
+    },
+    paused: () => {
+      el.btnStart.disabled = true;
+      el.btnPause.disabled = true;
+      el.btnResume.hidden = false;
+      el.btnResume.disabled = false;
+      el.btnReset.disabled = false;
+      el.btnLap.disabled = true;
+      el.btnClearLaps.disabled = laps.length === 0;
+    },
+  };
+
   function formatTime(msTotal) {
     const hours = Math.floor(msTotal / 3_600_000);
     const minutes = Math.floor((msTotal % 3_600_000) / 60_000);
     const seconds = Math.floor((msTotal % 60_000) / 1000);
     const milliseconds = Math.floor(msTotal % 1000);
     return {
-      hours: String(hours).padStart(2, '0'),
-      minutes: String(minutes).padStart(2, '0'),
-      seconds: String(seconds).padStart(2, '0'),
-      millis: String(milliseconds).padStart(3, '0')
+      hours: String(hours).padStart(2, "0"),
+      minutes: String(minutes).padStart(2, "0"),
+      seconds: String(seconds).padStart(2, "0"),
+      millis: String(milliseconds).padStart(3, "0"),
     };
   }
 
   function updateDisplay(msTotal) {
     const t = formatTime(msTotal);
-    el.hours.textContent = t.hours;
-    el.minutes.textContent = t.minutes;
-    el.seconds.textContent = t.seconds;
-    el.millis.textContent = t.millis;
+    if (t.hours !== lastRendered.h) {
+      el.hours.textContent = t.hours;
+      lastRendered.h = t.hours;
+    }
+    if (t.minutes !== lastRendered.m) {
+      el.minutes.textContent = t.minutes;
+      lastRendered.m = t.minutes;
+    }
+    if (t.seconds !== lastRendered.s) {
+      el.seconds.textContent = t.seconds;
+      lastRendered.s = t.seconds;
+    }
+    if (t.millis !== lastRendered.ms) {
+      el.millis.textContent = t.millis;
+      lastRendered.ms = t.millis;
+    }
   }
 
   function currentElapsed() {
@@ -61,52 +101,35 @@
   }
 
   function setControlsState(state) {
-    // states: 'idle', 'running', 'paused'
-    switch (state) {
-      case 'idle':
-        el.btnStart.disabled = false;
-        el.btnPause.disabled = true;
-        el.btnResume.hidden = true;
-        el.btnResume.disabled = true;
-        el.btnReset.disabled = true;
-        el.btnLap.disabled = true;
-        el.btnClearLaps.disabled = laps.length === 0;
-        break;
-      case 'running':
-        el.btnStart.disabled = true;
-        el.btnPause.disabled = false;
-        el.btnResume.hidden = true;
-        el.btnResume.disabled = true;
-        el.btnReset.disabled = false;
-        el.btnLap.disabled = false;
-        el.btnClearLaps.disabled = laps.length === 0;
-        break;
-      case 'paused':
-        el.btnStart.disabled = true;
-        el.btnPause.disabled = true;
-        el.btnResume.hidden = false;
-        el.btnResume.disabled = false;
-        el.btnReset.disabled = false;
-        el.btnLap.disabled = true; // disable lap while paused
-        el.btnClearLaps.disabled = laps.length === 0;
-        break;
-    }
+    controlStates[state] && controlStates[state]();
   }
 
-  // --------- LAP RENDERING ---------
   function renderLap(lap) {
     const node = el.lapTemplate.content.cloneNode(true);
-    const li = node.querySelector('.lap-item');
-    li.querySelector('[data-lap-index]').textContent = '#' + lap.index;
-    li.querySelector('[data-lap-time]').textContent = formatLapTime(lap.total);
-    li.querySelector('[data-lap-diff]').textContent = lap.index === 1 ? '—' : '+' + formatLapTime(lap.diff);
-    el.lapList.prepend(li); // newest on top
+    const li = node.querySelector(".lap-item");
+    li.querySelector("[data-lap-index]").textContent = "#" + lap.index;
+    li.querySelector("[data-lap-time]").textContent = formatLapTime(lap.total);
+    li.querySelector("[data-lap-diff]").textContent =
+      lap.index === 1 ? "—" : "+" + formatLapTime(lap.diff);
+    li.classList.add("is-new");
+    el.lapList.prepend(li);
+    const removeNew = () => li.classList.remove("is-new");
+    const fallbackId = setTimeout(removeNew, 700);
+    li.addEventListener(
+      "animationend",
+      (e) => {
+        if (e.target === li) {
+          clearTimeout(fallbackId);
+          removeNew();
+        }
+      },
+      { once: true }
+    );
   }
 
   function formatLapTime(ms) {
-    // Show mm:ss.mmm if < 1h, else HH:MM:SS.mmm
     const { hours, minutes, seconds, millis } = formatTime(ms);
-    if (hours === '00') {
+    if (hours === "00") {
       return `${minutes}:${seconds}.${millis}`;
     }
     return `${hours}:${minutes}:${seconds}.${millis}`;
@@ -119,31 +142,35 @@
     laps.push(lap);
     lastLapTime = total;
     renderLap(lap);
-    setControlsState(running ? 'running' : 'paused');
+    setControlsState(running ? "running" : "paused");
   }
 
   function clearLaps() {
     laps.length = 0;
     lastLapTime = 0;
-    el.lapList.innerHTML = '';
-    setControlsState(running ? 'running' : (elapsedBeforePause > 0 ? 'paused' : 'idle'));
+    el.lapList.innerHTML = "";
+    setControlsState(
+      running ? "running" : elapsedBeforePause > 0 ? "paused" : "idle"
+    );
   }
 
-  // --------- ACTIONS ---------
   function start() {
     if (running) return;
     running = true;
     startTime = performance.now();
     tick();
-    setControlsState('running');
+    setControlsState("running");
+    setRunningVisual(true);
   }
 
   function pause() {
     if (!running) return;
+    const nowElapsed = currentElapsed();
     running = false;
-    elapsedBeforePause = currentElapsed();
+    elapsedBeforePause = nowElapsed;
     cancelAnimationFrame(rafId);
-    setControlsState('paused');
+    setControlsState("paused");
+    setRunningVisual(false);
   }
 
   function resume() {
@@ -151,7 +178,8 @@
     running = true;
     startTime = performance.now();
     tick();
-    setControlsState('running');
+    setControlsState("running");
+    setRunningVisual(true);
   }
 
   function reset() {
@@ -160,37 +188,50 @@
     startTime = 0;
     elapsedBeforePause = 0;
     updateDisplay(0);
-    // keep laps but user can clear them manually
-    setControlsState('idle');
+    setControlsState("idle");
+    setRunningVisual(false);
   }
 
-  // --------- EVENT LISTENERS ---------
-  el.btnStart.addEventListener('click', start);
-  el.btnPause.addEventListener('click', pause);
-  el.btnResume.addEventListener('click', resume);
-  el.btnReset.addEventListener('click', reset);
-  el.btnLap.addEventListener('click', addLap);
-  el.btnClearLaps.addEventListener('click', clearLaps);
+  const root = el.stopwatchRoot;
+  function setRunningVisual(on) {
+    if (!root) return;
+    root.classList.toggle("is-running", !!on);
+  }
 
-  // Keyboard shortcuts (basic)
-  // Space: start/pause/resume, L: lap, R: reset
-  window.addEventListener('keydown', (e) => {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
-    if (e.code === 'Space') {
+  document.addEventListener("click", (e) => {
+    const target = e.target.closest("button[data-action]");
+    if (!target) return;
+    const action = target.getAttribute("data-action");
+    if (action === "start") return start();
+    if (action === "pause") return pause();
+    if (action === "resume") return resume();
+    if (action === "reset") return reset();
+    if (action === "lap") return addLap();
+    if (action === "clear-laps") return clearLaps();
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (
+      e.target &&
+      (e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable)
+    )
+      return;
+    if (e.code === "Space") {
       e.preventDefault();
       if (!running && elapsedBeforePause === 0) start();
       else if (running) pause();
       else resume();
-    } else if (e.key.toLowerCase() === 'l') {
+    } else if (e.key.toLowerCase() === "l") {
       if (running) addLap();
-    } else if (e.key.toLowerCase() === 'r') {
+    } else if (e.key.toLowerCase() === "r") {
       reset();
-    } else if (e.key.toLowerCase() === 'c') {
+    } else if (e.key.toLowerCase() === "c") {
       clearLaps();
     }
   });
 
-  // Initialize display
   updateDisplay(0);
-  setControlsState('idle');
+  setControlsState("idle");
 })();
