@@ -20,9 +20,9 @@ The goal is to create an **interactive and user-friendly stopwatch web applicati
 
 
 
-📂 Project Structure  
-SCT_WD_2/
-│── index.html 
-│── styles.css 
-│── script.js 
-│── README.md 
+📂 Project Structure
+
+├── index.html   
+├── style.css    
+└── script.js    
+
